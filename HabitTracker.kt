@@ -8,7 +8,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,31 +20,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -74,9 +68,8 @@ import com.example.habittracker.ui.theme.HabitTrackerTheme
 /*
  * ЗАДАНИЕ 1. Создание проекта
  * MainActivity подключает Compose через setContent { }. Внутри темы вызываем
- * HabitScreen вместо Greeting. По заданию 9 Scaffold переносится в HabitScreen,
- * поэтому здесь его НЕТ (иначе получились бы два вложенных Scaffold).
- * HabitScreen принимает modifier: Modifier = Modifier и не игнорирует его.
+ * HabitScreen вместо Greeting. HabitScreen принимает modifier: Modifier = Modifier
+ * и не игнорирует его.
  */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,9 +99,8 @@ data class Habit(
     val done: Boolean = false
 )
 
-// ЗАДАНИЕ 5 и 10: варианты категорий и фильтров
+// ЗАДАНИЕ 5: варианты категорий
 private val categories = listOf("Здоровье", "Образование", "Работа", "Отдых")
-private val filters = listOf("Все", "Выполненные", "Невыполненные")
 
 @Composable
 fun HabitScreen(modifier: Modifier = Modifier) {
@@ -136,10 +128,9 @@ fun HabitScreen(modifier: Modifier = Modifier) {
      * remember сохраняет состояние между рекомпозициями, mutableStateOf делает
      * его наблюдаемым, by позволяет писать count вместо count.value.
      * Обычный var count = 0 НЕ наблюдаемый: интерфейс не обновится.
-     * Состояние хранится в HabitScreen, чтобы пережить скрытие формы.
      */
     var createdCount by remember { mutableIntStateOf(0) }
-    var lastAdded by remember { mutableStateOf<Habit?>(null) } // "последняя введённая" (задание 5)
+    var lastAdded by remember { mutableStateOf<Habit?>(null) } // последняя введённая (задание 5)
 
     /*
      * ЗАДАНИЕ 5. Состояния формы
@@ -154,12 +145,6 @@ fun HabitScreen(modifier: Modifier = Modifier) {
     var daily by remember { mutableStateOf(false) }
     var difficulty by remember { mutableFloatStateOf(1f) }
 
-    // ЗАДАНИЕ 9: показ формы по кнопке FAB. Доступно и FAB, и содержимому экрана.
-    var showForm by remember { mutableStateOf(false) }
-
-    // ЗАДАНИЕ 10: выбранный фильтр — одно состояние
-    var filter by remember { mutableStateOf("Все") }
-
     /*
      * ЗАДАНИЕ 5. Валидация
      * toIntOrNull() не падает на пустой строке и буквах (в отличие от toInt()).
@@ -173,23 +158,13 @@ fun HabitScreen(modifier: Modifier = Modifier) {
 
     /*
      * ЗАДАНИЕ 7. Статистика
-     * Считается из ВСЕГО списка (не из отфильтрованного) как вычисляемые val.
+     * Считается из списка как вычисляемые val.
      * Отдельные изменяемые счётчики не заводим.
      */
     val completed = habits.count { it.done }
     val notCompleted = habits.size - completed
     val doneMinutes = habits.filter { it.done }.sumOf { it.minutes }
     val percent = if (habits.isEmpty()) 0 else completed * 100 / habits.size
-
-    /*
-     * ЗАДАНИЕ 10. Список для отображения по фильтру
-     * Исходный список остаётся целым; фильтруется только то, что показываем.
-     */
-    val displayed = when (filter) {
-        "Выполненные" -> habits.filter { it.done }
-        "Невыполненные" -> habits.filter { !it.done }
-        else -> habits.toList()
-    }
 
     // Обработчики событий
     // ЗАДАНИЕ 4–5: состояние меняем ТОЛЬКО в обработчиках, не в теле Composable.
@@ -224,8 +199,7 @@ fun HabitScreen(modifier: Modifier = Modifier) {
         clearForm()
     }
 
-    // ЗАДАНИЕ 7: переключение выполнения. Ищем по id, а не по позиции
-    // (в отфильтрованном списке позиции не совпадают с исходным).
+    // ЗАДАНИЕ 7: переключение выполнения. Ищем по id, а не по позиции.
     fun toggle(id: Int) {
         val index = habits.indexOfFirst { it.id == id }
         if (index >= 0) {
@@ -246,242 +220,195 @@ fun HabitScreen(modifier: Modifier = Modifier) {
     }
 
     /*
-     * ЗАДАНИЕ 9. Scaffold + FloatingActionButton
-     * Scaffold один, внутри HabitScreen. FAB открывает/скрывает форму.
-     * Переданный modifier применяется к Scaffold.
+     * ЗАДАНИЯ 3 и 5. Один LazyColumn на весь экран
+     * Блоки экрана — это item { }, привычки — items(...) { }.
+     * Нельзя класть LazyColumn в Column с verticalScroll (бесконечная высота).
+     * statusBarsPadding() — отступ от строки состояния сверху.
+     * imePadding() — чтобы клавиатура не закрывала поля формы.
+     * Arrangement.spacedBy(12.dp) — промежуток МЕЖДУ детьми, не от краёв.
+     * Переданный modifier применяется к LazyColumn.
      */
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showForm = !showForm }) {
-                // ЗАДАНИЕ 8: иконка. Здесь стандартная Icons.Default.Add (чтобы файл был один).
-                // Свой вариант: Icon(painterResource(R.drawable.ic_add), "Форма привычки")
-                Icon(Icons.Default.Add, contentDescription = "Форма привычки")
-            }
-        }
-    ) { innerPadding ->
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .imePadding(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
 
         /*
-         * ЗАДАНИЯ 3 и 5. Один LazyColumn на весь экран
-         * Блоки экрана — это item { }, привычки — items(...) { }.
-         * Нельзя класть LazyColumn в Column с verticalScroll (бесконечная высота).
-         * contentPadding снизу 96.dp — чтобы FAB не перекрывал последнюю карточку.
-         * Modifier.padding(innerPadding) — системные отступы от Scaffold.
-         * imePadding() — чтобы клавиатура не закрывала поля формы.
-         * Arrangement.spacedBy(12.dp) — промежуток МЕЖДУ детьми, не от краёв.
+         * ЗАДАНИЯ 2 и 8. Заголовок + изображение
+         * Row: элементы по горизонтали; verticalAlignment по центру.
+         * Логотип: Box с CircleShape обрезкой 64.dp. В задании используется
+         * Image из drawable (файл в res/drawable, имя латиницей):
+         *
+         *   Image(
+         *       painter = painterResource(R.drawable.habit_logo),
+         *       contentDescription = "Логотип трекера",
+         *       contentScale = ContentScale.Crop,
+         *       modifier = Modifier.size(64.dp).clip(CircleShape)
+         *   )
+         *
+         * Чтобы код не зависел от файла картинки, ниже нарисован эквивалент.
          */
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .imePadding(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-
-            /*
-             * ЗАДАНИЯ 2 и 8. Заголовок + изображение
-             * Row: элементы по горизонтали; verticalAlignment по центру.
-             * Логотип: Box с CircleShape обрезкой 64.dp. В задании используется
-             * Image из drawable (файл в res/drawable, имя латиницей):
-             *
-             *   Image(
-             *       painter = painterResource(R.drawable.habit_logo),
-             *       contentDescription = "Логотип трекера",
-             *       contentScale = ContentScale.Crop,
-             *       modifier = Modifier.size(64.dp).clip(CircleShape)
-             *   )
-             *
-             * Чтобы код не зависел от файла картинки, ниже нарисован эквивалент.
-             */
-            item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+        item {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF4CAF50)),
+                    contentAlignment = Alignment.Center
                 ) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Логотип трекера",
+                        tint = Color.White,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+                Text(
+                    text = "Трекер привычек",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        /*
+         * ЗАДАНИЯ 2, 3, 4, 7. Блок статистики через Surface
+         * Surface: color, shape, tonalElevation, shadowElevation, border.
+         * Внутри Column с отступами 16.dp и промежутками 8.dp.
+         */
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = RoundedCornerShape(16.dp),
+                tonalElevation = 4.dp,
+                shadowElevation = 2.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // ЗАДАНИЕ 2 + 7: «Выполнено сегодня» / «N из M» (теперь не статика)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Выполнено сегодня", fontWeight = FontWeight.SemiBold)
+                        Text("$completed из ${habits.size}")
+                    }
+                    // ЗАДАНИЕ 7: остальные показатели
+                    Text("Не выполнено: $notCompleted")
+                    Text("Минут выполнено: $doneMinutes")
+                    // ЗАДАНИЕ 4: счётчик созданных привычек
+                    Text("Создано привычек: $createdCount")
+
+                    // ЗАДАНИЕ 2: Box высотой 100.dp.
+                    // Box накладывает элементы друг на друга:
+                    // процент в центре, «Прогресс» — сверху слева (Modifier.align).
                     Box(
                         modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF4CAF50)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = "Логотип трекера",
-                            tint = Color.White,
-                            modifier = Modifier.size(40.dp)
-                        )
-                    }
-                    Text(
-                        text = "Трекер привычек",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            /*
-             * ЗАДАНИЯ 2, 3, 4, 7. Блок статистики через Surface
-             * Surface: color, shape, tonalElevation, shadowElevation, border.
-             * Внутри Column с отступами 16.dp и промежутками 8.dp.
-             */
-            item {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = RoundedCornerShape(16.dp),
-                    tonalElevation = 4.dp,
-                    shadowElevation = 2.dp,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // ЗАДАНИЕ 2 + 7: «Выполнено сегодня» / «N из M» (теперь не статика)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Выполнено сегодня", fontWeight = FontWeight.SemiBold)
-                            Text("$completed из ${habits.size}")
-                        }
-                        // ЗАДАНИЕ 7: остальные показатели
-                        Text("Не выполнено: $notCompleted")
-                        Text("Минут выполнено: $doneMinutes")
-                        // ЗАДАНИЕ 4: счётчик созданных привычек
-                        Text("Создано привычек: $createdCount")
-
-                        // ЗАДАНИЕ 2: Box высотой 100.dp.
-                        // Box накладывает элементы друг на друга:
-                        // процент в центре, «Прогресс» — сверху слева (Modifier.align).
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(100.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surface)
-                        ) {
-                            Text(
-                                text = "Прогресс",
-                                modifier = Modifier
-                                    .align(Alignment.TopStart)
-                                    .padding(8.dp),
-                                fontSize = 14.sp
-                            )
-                            Text(
-                                text = "$percent%",
-                                modifier = Modifier.align(Alignment.Center),
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-
-                        /*
-                         * ЗАДАНИЕ 4. Кнопки трёх видов (сравни внешний вид):
-                         * Button — залитая, OutlinedButton — с контуром,
-                         * TextButton — без заливки.
-                         * onClick — лямбда, вызывается при нажатии
-                         * (count++ напрямую в теле Composable писать нельзя).
-                         * enabled = false — обработчик не выполняется.
-                         * После задания 5 назначение кнопок изменилось:
-                         * «Добавить» создаёт привычку, «Очистить» чистит поля.
-                         */
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(
-                                onClick = { addHabit() },
-                                enabled = canAdd,
-                                shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(12.dp)
-                            ) { Text("Добавить") }
-
-                            OutlinedButton(onClick = { clearForm() }) { Text("Очистить") }
-                        }
-                        // ЗАДАНИЕ 7: снимает отметки, привычки не удаляются
-                        TextButton(onClick = { resetStats() }) { Text("Сбросить статистику") }
-
-                        // ЗАДАНИЕ 5: вывод последней введённой привычки
-                        lastAdded?.let {
-                            Text(
-                                "Последняя: ${it.name}, ${it.minutes} мин, ${it.category}",
-                                fontSize = 14.sp
-                            )
-                        }
-                    }
-                }
-            }
-
-            /*
-             * ЗАДАНИЯ 5 и 9. Форма — показывается только при showForm == true
-             */
-            if (showForm) {
-                item {
-                    HabitForm(
-                        name = name, onNameChange = { name = it },
-                        minutes = minutes, onMinutesChange = { minutes = it },
-                        minutesError = minutesError,
-                        category = category, onCategoryChange = { category = it },
-                        required = required, onRequiredChange = { required = it },
-                        daily = daily, onDailyChange = { daily = it },
-                        difficulty = difficulty, onDifficultyChange = { difficulty = it }
-                    )
-                }
-            }
-
-            /*
-             * ЗАДАНИЕ 10. FilterChip и AssistChip
-             * FilterChip имеет состояние selected, AssistChip — нет (это действие).
-             * Row с horizontalScroll — чтобы чипы помещались на узком экране.
-             */
-            item {
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    filters.forEach { f ->
-                        FilterChip(
-                            selected = filter == f,
-                            onClick = { filter = f },
-                            label = { Text(f) }
-                        )
-                    }
-                    AssistChip(
-                        onClick = { filter = "Все" },
-                        label = { Text("Сбросить фильтр") }
-                    )
-                }
-            }
-
-            /*
-             * ЗАДАНИЯ 3, 6, 7, 10. Список привычек
-             * items(displayed, key = { it.id }) — key по id, чтобы Compose
-             * правильно отслеживал карточки при удалении/фильтрации.
-             * Карточка только сообщает о событии (onToggle/onDelete),
-             * а сам список меняется здесь, в HabitScreen.
-             * Если список пуст — понятное сообщение.
-             */
-            if (displayed.isEmpty()) {
-                item {
-                    Text(
-                        text = if (habits.isEmpty()) "Привычек пока нет. Нажмите «+», чтобы добавить."
-                        else "В этом фильтре нет привычек.",
-                        modifier = Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
-                        textAlign = TextAlign.Center
-                    )
+                            .height(100.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surface)
+                    ) {
+                        Text(
+                            text = "Прогресс",
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(8.dp),
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            text = "$percent%",
+                            modifier = Modifier.align(Alignment.Center),
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    /*
+                     * ЗАДАНИЕ 4. Кнопки трёх видов (сравни внешний вид):
+                     * Button — залитая, OutlinedButton — с контуром,
+                     * TextButton — без заливки.
+                     * onClick — лямбда, вызывается при нажатии
+                     * (count++ напрямую в теле Composable писать нельзя).
+                     * enabled = false — обработчик не выполняется.
+                     * После задания 5 назначение кнопок изменилось:
+                     * «Добавить» создаёт привычку, «Очистить» чистит поля.
+                     */
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { addHabit() },
+                            enabled = canAdd,
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(12.dp)
+                        ) { Text("Добавить") }
+
+                        OutlinedButton(onClick = { clearForm() }) { Text("Очистить") }
+                    }
+                    // ЗАДАНИЕ 7: снимает отметки, привычки не удаляются
+                    TextButton(onClick = { resetStats() }) { Text("Сбросить статистику") }
+
+                    // ЗАДАНИЕ 5: вывод последней введённой привычки
+                    lastAdded?.let {
+                        Text(
+                            "Последняя: ${it.name}, ${it.minutes} мин, ${it.category}",
+                            fontSize = 14.sp
+                        )
+                    }
                 }
-            } else {
-                items(displayed, key = { it.id }) { habit ->
-                    HabitCard(
-                        habit = habit,
-                        onToggle = { toggle(habit.id) },
-                        onDelete = { delete(habit.id) }
-                    )
-                }
+            }
+        }
+
+        // ЗАДАНИЕ 5. Форма ввода (всегда видна)
+        item {
+            HabitForm(
+                name = name, onNameChange = { name = it },
+                minutes = minutes, onMinutesChange = { minutes = it },
+                minutesError = minutesError,
+                category = category, onCategoryChange = { category = it },
+                required = required, onRequiredChange = { required = it },
+                daily = daily, onDailyChange = { daily = it },
+                difficulty = difficulty, onDifficultyChange = { difficulty = it }
+            )
+        }
+
+        /*
+         * ЗАДАНИЯ 3, 6, 7. Список привычек
+         * items(habits, key = { it.id }) — key по id, чтобы Compose
+         * правильно отслеживал карточки при удалении.
+         * Карточка только сообщает о событии (onToggle/onDelete),
+         * а сам список меняется здесь, в HabitScreen.
+         * Если список пуст — понятное сообщение.
+         */
+        if (habits.isEmpty()) {
+            item {
+                Text(
+                    text = "Привычек пока нет. Добавьте первую в форме выше.",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            items(habits, key = { it.id }) { habit ->
+                HabitCard(
+                    habit = habit,
+                    onToggle = { toggle(habit.id) },
+                    onDelete = { delete(habit.id) }
+                )
             }
         }
     }
@@ -649,14 +576,12 @@ fun HabitForm(
 /*
  * МИНИ-ЭКСПЕРИМЕНТ: порядок Modifier (в приложении не вызывается;
  * чтобы посмотреть, временно вызови ModifierExperiment() в setContent)
- * Modifier — цепочка "обёрток": первый модификатор снаружи, последний ближе
- * к содержимому.
  *  A) background().padding(): фон идёт СНАРУЖИ отступа, поэтому покрывает и
  *     контент, и отступ → зелёный блок большой.
  *  B) padding().background(): отступ снаружи, фон только под контентом →
  *     зелёный блок маленький, вокруг него пустое место.
- *  C) Аналогично border().padding() даёт пространство ВНУТРИ границы,
- *     а padding().border() — снаружи. border() сам внутренний отступ не добавляет.
+ *  C) border().padding() даёт пространство ВНУТРИ границы,
+ *     а padding().border() — снаружи.
  */
 @Composable
 fun ModifierExperiment() {
@@ -673,4 +598,3 @@ fun ModifierExperiment() {
         )
     }
 }
-
